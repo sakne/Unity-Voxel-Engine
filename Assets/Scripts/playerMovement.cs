@@ -38,6 +38,7 @@ public class playerMovement : MonoBehaviour
         UpdateMouseLook();
         UpdateMovement();
 
+        
     }
 
     void UpdateMouseLook()
