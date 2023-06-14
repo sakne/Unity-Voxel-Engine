@@ -4,12 +4,15 @@ using UnityEngine;
 
 public class playerMovement : MonoBehaviour
 {
+
+    public VoxelMesh voxelMesh;
+
     [SerializeField] Transform playerCamera = null;
     [SerializeField] float mouseSensitivity = 3.5f;
     [SerializeField] float walkSpeed = 6.0f;
     [SerializeField] float gravity = -13.0f;
-    [SerializeField][Range(0.0f, 0.5f)] float moveSmoothTime = 0.3f;
-    [SerializeField][Range(0.0f, 0.5f)] float mouseSmoothTime = 0.03f;
+    [SerializeField] [Range(0.0f, 0.5f)] float moveSmoothTime = 0.3f;
+    [SerializeField] [Range(0.0f, 0.5f)] float mouseSmoothTime = 0.03f;
 
     [SerializeField] bool lockCursor = true;
 
@@ -23,14 +26,18 @@ public class playerMovement : MonoBehaviour
     Vector2 currentMouseDelta = Vector2.zero;
     Vector2 currentMouseDeltaVelocity = Vector2.zero;
 
+    float voxelSize;
+
     void Start()
     {
         controller = GetComponent<CharacterController>();
-        if(lockCursor)
+        if (lockCursor)
         {
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
         }
+
+        voxelSize = voxelMesh.voxelSize; // Assign the voxel size from the VoxelMesh script
     }
 
     void Update()
@@ -38,7 +45,29 @@ public class playerMovement : MonoBehaviour
         UpdateMouseLook();
         UpdateMovement();
 
-        
+        if (Input.GetMouseButtonDown(0))
+        {
+            RaycastHit hit;
+            Ray ray = new Ray(playerCamera.position, playerCamera.forward);
+
+            if (Physics.Raycast(ray, out hit))
+            {
+                // Check if the raycast hit the voxel mesh
+                if (hit.transform.tag == "voxelmesh")
+                {
+                    // Get the voxel cube position
+                    Vector3 voxelPosition = hit.transform.InverseTransformPoint(hit.point) / voxelSize;
+
+                    // Round the position to get the nearest voxel cube
+                    int voxelX = Mathf.RoundToInt(voxelPosition.x);
+                    int voxelY = Mathf.RoundToInt(voxelPosition.y);
+                    int voxelZ = Mathf.RoundToInt(voxelPosition.z);
+
+                    // Damage the voxel cube with a value of 1
+                    voxelMesh.DamageVoxel(voxelX, voxelY, voxelZ, 1);
+                }
+            }
+        }
     }
 
     void UpdateMouseLook()

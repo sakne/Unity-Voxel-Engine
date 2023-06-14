@@ -1,5 +1,5 @@
-using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine;
 
 public class VoxelMesh : MonoBehaviour
 {
@@ -8,6 +8,8 @@ public class VoxelMesh : MonoBehaviour
     public float voxelSize = 1f;
     private Vector3 location;
 
+    private Dictionary<Vector3Int, int> voxelHealth; // Map voxel position to its health
+
     void Start()
     {
         location = transform.position;
@@ -15,9 +17,9 @@ public class VoxelMesh : MonoBehaviour
 
         string[] lines = fileText.Split('\n');
 
-
         List<Vector3> vertices = new List<Vector3>();
         List<int> triangles = new List<int>();
+        voxelHealth = new Dictionary<Vector3Int, int>(); // Initialize the voxel health dictionary
 
         // Iterate over each line
         for (int i = 0; i < lines.Length; i++)
@@ -28,7 +30,7 @@ public class VoxelMesh : MonoBehaviour
 
             string[] values = line.Split(' ');
 
-             if (values.Length != 4)
+            if (values.Length != 4)
             {
                 Debug.LogError("Invalid line format at line " + (i + 1) + ": " + line);
                 continue;
@@ -52,7 +54,15 @@ public class VoxelMesh : MonoBehaviour
                 continue;
             }
 
+            int health;
+            if (!int.TryParse(values[3], out health))
+            {
+                Debug.LogError("Invalid health value at line " + (i + 1) + ": " + values[3]);
+                continue;
+            }
+
             CreateVoxelMesh(vertices, triangles, x, y, z);
+            voxelHealth[new Vector3Int(x, y, z)] = health; // Store the voxel's health
         }
 
         Mesh combinedMesh = new Mesh();
@@ -67,6 +77,7 @@ public class VoxelMesh : MonoBehaviour
 
         combinedObject.transform.Rotate(Vector3.right, -90f);
         combinedObject.transform.position = location;
+        combinedObject.tag = "voxelmesh";
 
         meshFilter.mesh = combinedMesh;
         meshRenderer.material = voxelPrefab.GetComponent<MeshRenderer>().sharedMaterial;
@@ -84,12 +95,62 @@ public class VoxelMesh : MonoBehaviour
         int vertexOffset = vertices.Count;
         for (int i = 0; i < meshVertices.Length; i++)
         {
-            vertices.Add(meshVertices[i] * voxelSize  + offset);
+            vertices.Add(meshVertices[i] * voxelSize + offset);
         }
 
-        for (int i = 0; i < meshTriangles.Length; i++)
+        for (int i = 0; i < meshTriangles.Length; i += 3)
         {
             triangles.Add(meshTriangles[i] + vertexOffset);
+            triangles.Add(meshTriangles[i + 1] + vertexOffset);
+            triangles.Add(meshTriangles[i + 2] + vertexOffset);
+        }
+
+        int initialHealth = 3;
+
+        // Store the voxel cube position and health value in a dictionary
+        Vector3Int voxelPosition = new Vector3Int(x, y, z);
+        voxelHealth.Add(voxelPosition, initialHealth);
+    }
+
+    public void DamageVoxel(int x, int y, int z, int damage)
+    {
+        Vector3Int voxelPosition = new Vector3Int(x, y, z);
+
+        if (voxelHealth.ContainsKey(voxelPosition))
+        {
+            voxelHealth[voxelPosition] -= damage;
+
+            if (voxelHealth[voxelPosition] <= 0)
+            {
+                DestroyVoxel(x, y, z);
+            }
+        }
+        else
+        {
+            Debug.LogWarning("Invalid voxel index: (" + x + ", " + y + ", " + z + ")");
+        }
+    }
+
+    void DestroyVoxel(int x, int y, int z)
+    {
+        Vector3Int voxelPosition = new Vector3Int(x, y, z);
+
+        if (voxelHealth.ContainsKey(voxelPosition))
+        {
+            voxelHealth.Remove(voxelPosition);
+
+            // Find the voxel cube game object at the given position
+            Transform voxel = transform.Find("(" + x + ", " + y + ", " + z + ")");
+
+            if (voxel != null)
+            {
+                // Destroy the voxel cube game object
+                Destroy(voxel.gameObject);
+            }
+        }
+        else
+        {
+            Debug.LogWarning("Invalid voxel index: (" + x + ", " + y + ", " + z + ")");
         }
     }
 }
