@@ -36,8 +36,6 @@ public class playerMovement : MonoBehaviour
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
         }
-
-        voxelSize = voxelMesh.voxelSize; // Assign the voxel size from the VoxelMesh script
     }
 
     void Update()
@@ -45,29 +43,7 @@ public class playerMovement : MonoBehaviour
         UpdateMouseLook();
         UpdateMovement();
 
-        if (Input.GetMouseButtonDown(0))
-        {
-            RaycastHit hit;
-            Ray ray = new Ray(playerCamera.position, playerCamera.forward);
-
-            if (Physics.Raycast(ray, out hit))
-            {
-                // Check if the raycast hit the voxel mesh
-                if (hit.transform.tag == "voxelmesh")
-                {
-                    // Get the voxel cube position
-                    Vector3 voxelPosition = hit.transform.InverseTransformPoint(hit.point) / voxelSize;
-
-                    // Round the position to get the nearest voxel cube
-                    int voxelX = Mathf.RoundToInt(voxelPosition.x);
-                    int voxelY = Mathf.RoundToInt(voxelPosition.y);
-                    int voxelZ = Mathf.RoundToInt(voxelPosition.z);
-
-                    // Damage the voxel cube with a value of 1
-                    voxelMesh.DamageVoxel(voxelX, voxelY, voxelZ, 1);
-                }
-            }
-        }
+        
     }
 
     void UpdateMouseLook()

@@ -5,10 +5,10 @@ public class VoxelMesh : MonoBehaviour
 {
     public TextAsset voxelDataFile;
     public GameObject voxelPrefab;
-    public float voxelSize = 1f;
+    public float ObjectSize = 1f;
+    public float VoxelSize = 1f;
     private Vector3 location;
 
-    private Dictionary<Vector3Int, int> voxelHealth; // Map voxel position to its health
 
     void Start()
     {
@@ -19,7 +19,6 @@ public class VoxelMesh : MonoBehaviour
 
         List<Vector3> vertices = new List<Vector3>();
         List<int> triangles = new List<int>();
-        voxelHealth = new Dictionary<Vector3Int, int>(); // Initialize the voxel health dictionary
 
         // Iterate over each line
         for (int i = 0; i < lines.Length; i++)
@@ -54,15 +53,7 @@ public class VoxelMesh : MonoBehaviour
                 continue;
             }
 
-            int health;
-            if (!int.TryParse(values[3], out health))
-            {
-                Debug.LogError("Invalid health value at line " + (i + 1) + ": " + values[3]);
-                continue;
-            }
-
-            CreateVoxelMesh(vertices, triangles, x, y, z);
-            voxelHealth[new Vector3Int(x, y, z)] = health; // Store the voxel's health
+            CreateVoxelMesh(vertices, triangles, x, y, z, VoxelSize);
         }
 
         Mesh combinedMesh = new Mesh();
@@ -84,18 +75,31 @@ public class VoxelMesh : MonoBehaviour
         meshCollider.sharedMesh = combinedMesh;
     }
 
-    void CreateVoxelMesh(List<Vector3> vertices, List<int> triangles, int x, int y, int z)
+    void CreateVoxelMesh(List<Vector3> vertices, List<int> triangles, int x, int y, int z, float VoxelSize)
     {
         Mesh voxelMesh = voxelPrefab.GetComponent<MeshFilter>().sharedMesh;
         Vector3[] meshVertices = voxelMesh.vertices;
         int[] meshTriangles = voxelMesh.triangles;
 
-        Vector3 offset = new Vector3(x, y, z) * voxelSize;
+        Vector3 offset = new Vector3(x, y, z) * VoxelSize;
 
         int vertexOffset = vertices.Count;
         for (int i = 0; i < meshVertices.Length; i++)
         {
-            vertices.Add(meshVertices[i] * voxelSize + offset);
+            Vector3 vertex = meshVertices[i] * VoxelSize + offset;
+
+            // Generate smaller cubes within the voxel
+            for (float offsetX = 0f; offsetX < VoxelSize; offsetX += VoxelSize / 2f)
+            {
+                for (float offsetY = 0f; offsetY < VoxelSize; offsetY += VoxelSize / 2f)
+                {
+                    for (float offsetZ = 0f; offsetZ < VoxelSize; offsetZ += VoxelSize / 2f)
+                    {
+                        Vector3 smallerCubeVertex = vertex + new Vector3(offsetX, offsetY, offsetZ);
+                        vertices.Add(smallerCubeVertex);
+                    }
+                }
+            }
         }
 
         for (int i = 0; i < meshTriangles.Length; i += 3)
@@ -105,52 +109,6 @@ public class VoxelMesh : MonoBehaviour
             triangles.Add(meshTriangles[i + 2] + vertexOffset);
         }
 
-        int initialHealth = 3;
-
-        // Store the voxel cube position and health value in a dictionary
-        Vector3Int voxelPosition = new Vector3Int(x, y, z);
-        voxelHealth.Add(voxelPosition, initialHealth);
     }
 
-    public void DamageVoxel(int x, int y, int z, int damage)
-    {
-        Vector3Int voxelPosition = new Vector3Int(x, y, z);
-
-        if (voxelHealth.ContainsKey(voxelPosition))
-        {
-            voxelHealth[voxelPosition] -= damage;
-
-            if (voxelHealth[voxelPosition] <= 0)
-            {
-                DestroyVoxel(x, y, z);
-            }
-        }
-        else
-        {
-            Debug.LogWarning("Invalid voxel index: (" + x + ", " + y + ", " + z + ")");
-        }
-    }
-
-    void DestroyVoxel(int x, int y, int z)
-    {
-        Vector3Int voxelPosition = new Vector3Int(x, y, z);
-
-        if (voxelHealth.ContainsKey(voxelPosition))
-        {
-            voxelHealth.Remove(voxelPosition);
-
-            // Find the voxel cube game object at the given position
-            Transform voxel = transform.Find("(" + x + ", " + y + ", " + z + ")");
-
-            if (voxel != null)
-            {
-                // Destroy the voxel cube game object
-                Destroy(voxel.gameObject);
-            }
-        }
-        else
-        {
-            Debug.LogWarning("Invalid voxel index: (" + x + ", " + y + ", " + z + ")");
-        }
-    }
 }
